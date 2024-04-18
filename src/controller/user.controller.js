@@ -1,6 +1,7 @@
 const { ApiError } = require("../utils/ApiError");
 const {User} = require("../models/user.model");
 const { uploadCloudinary } = require("../utils/cloudniry");
+const ApiResponse = require("../utils/ApiResponse");
 
 const registerUser = async (req,res,next)=>{
 
@@ -21,33 +22,49 @@ const registerUser = async (req,res,next)=>{
     })
 
     if(exictUser){
-        next (new ApiError(409,"User width email id already exists"))
+       return next (new ApiError(409,"User width email id already exists"))
     }
 
-    console.log(req.files)
-    const avatarLocalPath = req.files?.avatar[0]?.path;
-    const coverImageLocalPath = req.files?.coverImage[0]?.path || "";
+    const avatarLocalPath = req.files.avatar && req.files.avatar[0] && req.files.avatar[0].path || null;
+    const coverImageLocalPath = req.files.coverImage && req.files.coverImage[0] && req.files.coverImage[0].path || null;
     
     // check for images and avtar 
     if(!avatarLocalPath){
-        next(new ApiError(400,"Avatar file is required"))
+       return next(new ApiError(400,"Avatar file is required"))
     }
 
     // upload them in cloudinary , avtar
     const avatar = await uploadCloudinary(avatarLocalPath)
-    const coverImage = {
-        url:""
+
+    let coverImage;
+    if(coverImageLocalPath){
+         coverImage = await uploadCloudinary(coverImageLocalPath)
     }
-    if(converImageLocalPath){
-        coverImage = await uploadCloudinary(coverImageLocalPath)
+
+    // create user object - create entry in db
+console.log("done")
+    const user = await User.create({
+        fullName,
+        avatar:avatar.url,
+        email,
+        password,
+        userName:userName.toLowerCase()
+    })
+    
+    // remove password and refrence token field from res
+    const createUser = await User.findById(user._id).select(
+        "-password -refrenceToken"
+    )
+
+
+    // check for user creation 
+    if(!createUser){
+        next(new ApiError(500,"something went wrong while registring user"))
     }
 
+    // return res 
+    return res.status(200).json(new ApiResponse(200,createUser,"User register successfully"))
 
-
-    //TODO create user object - create entry in db
-    //TODO remove password and refrence token field from res
-    //TODO check for user creation 
-    //TODO return res 
 
 
 }
