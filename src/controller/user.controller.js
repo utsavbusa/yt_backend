@@ -69,6 +69,11 @@ console.log("done")
 
 }
 
+const loginUser = async (req,res,next)=>{
+
+}
+
 module.exports = {
-    registerUser
+    registerUser,
+    loginUser
 }
