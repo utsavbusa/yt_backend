@@ -3,6 +3,22 @@ const {User} = require("../models/user.model");
 const { uploadCloudinary } = require("../utils/cloudniry");
 const ApiResponse = require("../utils/ApiResponse");
 
+
+const genrateAccessAndRefershToken =async (userId,next)=>{
+    try{
+        const user = await User.findById(userId);
+        const accessToken = User.generateAccessToken();
+        const refereshToken = User.generateRefreshToken();
+
+        user.refrenceToken = refereshToken;
+        await user.save({validateBeforeSave:false})
+
+        return {accessToken,refereshToken}
+    }catch(err){
+        next(new ApiError(500, "Something went wrong while generating referesh and access token"))
+    }
+}
+
 const registerUser = async (req,res,next)=>{
 
     // get user information 
@@ -70,6 +86,51 @@ console.log("done")
 }
 
 const loginUser = async (req,res,next)=>{
+
+
+    // req body -> data
+    // username or email
+    //find the user
+    //password check
+    //access and referesh token
+    //send cookie
+
+    const {email,userName,password} = req.body;
+
+
+    if(!email || !userName){
+        return next(new ApiError(400,"User or email addresss required"))
+    }
+
+    const user = await User.findOne({
+        $or:[{email},{userName}]
+    })
+
+    if(!user){
+        return next(new ApiError(404,"User does't found"))
+    }
+
+    const isPasswordValid = await user.isPasswordCorrect(password);
+
+    if(!isPasswordValid){
+        return next(new ApiError(404,"Invalid user password"))
+    }
+
+
+    const {accessToken,refereshToken}  = genrateAccessAndRefershToken(user._id,next)
+
+    const loginUser = await User.findById(user._id).select("-password -refrenceToken")
+
+    const options = {
+        httpOnly:true,
+        secure:true
+    }
+
+    return res
+            .status(200)
+            .cokkie("accessToken",accessToken,options)
+            .cokkie("refereshToken",refereshToken,options)
+            .json(new ApiResponse(200,{user:loginUser,accessToken,refereshToken},"User login successfully"))
 
 }
 
